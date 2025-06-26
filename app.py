@@ -1,73 +1,75 @@
 import streamlit as st
 import random
-from QUIZ100 import malware_questions, pentest_questions, forensics_questions, cloud_questions
-from QUIZ100 import network_questions, vmware_questions, iot_questions, appsec_questions
-from QUIZ100 import reverse_engineering_questions, cryptography_questions
 
-# Combine all question sets
-all_questions = (
-    malware_questions + pentest_questions + forensics_questions + cloud_questions +
-    network_questions + vmware_questions + iot_questions + appsec_questions +
-    reverse_engineering_questions + cryptography_questions
+from quiz_data import all_questions
+
+st.set_page_config(page_title="Cybersecurity Quiz App", layout="wide")
+st.title("Cybersecurity Quiz App")
+
+# User preferences
+user_interests = st.multiselect(
+    "Select your fields of interest:",
+    options=list(set(q["field"] for q in all_questions)),
+    default=["Malware Analysis", "Penetration Testing"]
 )
 
-# App title
-st.set_page_config(page_title="Cybersecurity Field Quiz", page_icon="🔐")
-st.title("🔐 Cybersecurity Field Recommendation Quiz")
-st.write("Welcome! This quiz helps you discover your ideal cybersecurity field based on your interests and coding knowledge.")
-
-# Sidebar
-st.sidebar.header("👤 Your Profile")
-interests = st.sidebar.multiselect(
-    "Select your cybersecurity interests:",
-    sorted(set(q["field"] for q in all_questions))
-)
-languages = st.sidebar.multiselect(
-    "Which programming languages do you know?",
-    sorted(set(q["language_required"] for q in all_questions if q["language_required"] != "N/A"))
+user_languages = st.multiselect(
+    "Select languages you are comfortable with:",
+    options=sorted(set(q["language_required"] for q in all_questions if q["language_required"] != "N/A")),
+    default=["Python", "C/C++"]
 )
 
-# Filter logic
+# Filter questions
 def filter_questions(questions, interests, languages):
     return [
         q for q in questions
-        if q["field"] in interests or q.get("language_required") in languages
+        if q["field"] in interests or q["language_required"] in languages
     ]
 
-filtered_questions = filter_questions(all_questions, interests, languages)
-random.shuffle(filtered_questions)
-quiz_questions = filtered_questions[:10]
+selected_questions = filter_questions(all_questions, user_interests, user_languages)
 
+if not selected_questions:
+    st.warning("No questions matched your interests and known languages.")
+    st.stop()
+
+# Store user answers
 user_answers = {}
-if quiz_questions:
-    st.header("📝 Quiz")
-    for idx, q in enumerate(quiz_questions):
-        answer = st.radio(
-            f"Q{idx + 1}: {q['question']}",
-            q["options"],
-            key=q["id"]
-        )
-        user_answers[q["id"]] = answer
+st.subheader("Answer the questions below:")
 
-    if st.button("Submit Quiz"):
+for idx, question in enumerate(selected_questions):
+    st.markdown(f"**Q{idx + 1}: {question['question']}**")
+    user_answers[question["id"]] = st.radio(
+        "Select your answer:",
+        options=question["options"],
+        key=f"q_{question['id']}"
+    )
+
+# Submit button
+if st.button("Submit Quiz"):
+    def score_quiz(questions, user_answers):
         score = 0
         field_scores = {}
-
-        for q in quiz_questions:
-            if user_answers.get(q["id"]) == q["correct_answer"]:
+        for q in questions:
+            correct = q["correct_answer"]
+            user = user_answers.get(q["id"])
+            if user == correct:
                 score += 1
                 field_scores[q["field"]] = field_scores.get(q["field"], 0) + 1
+        return score, field_scores
 
-        st.success(f"✅ Your Score: {score}/{len(quiz_questions)}")
+    def recommend_field(field_scores):
+        if not field_scores:
+            return "No strong recommendation"
+        max_score = max(field_scores.values())
+        top_fields = [field for field, score in field_scores.items() if score == max_score]
+        return ", ".join(top_fields)
 
-        if field_scores:
-            max_score = max(field_scores.values())
-            recommended_fields = [f for f, s in field_scores.items() if s == max_score]
+    total_score, field_scores = score_quiz(selected_questions, user_answers)
+    recommended = recommend_field(field_scores)
 
-            st.markdown("### 🧠 Recommended Field(s):")
-            for field in recommended_fields:
-                st.markdown(f"- **{field}**")
-        else:
-            st.warning("No strong recommendation. Try choosing more interests or languages.")
-else:
-    st.info("⬅️ Please select interests and languages in the sidebar to start the quiz.")
+    st.success(f"Your Total Score: {total_score} / {len(selected_questions)}")
+    st.markdown("### Field-wise Scores:")
+    for field, score in field_scores.items():
+        st.write(f"- {field}: {score} correct")
+
+    st.markdown(f"### Recommended Field(s): **{recommended}**")
