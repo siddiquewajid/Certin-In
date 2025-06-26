@@ -1,9 +1,8 @@
-
 import streamlit as st
 import random
-from quiz100 import malware_questions, pentest_questions, forensics_questions, cloud_questions
-from quiz100 import network_questions, vmware_questions, iot_questions, appsec_questions
-from quiz100 import reverse_engineering_questions, cryptography_questions
+from QUIZ100 import malware_questions, pentest_questions, forensics_questions, cloud_questions
+from QUIZ100 import network_questions, vmware_questions, iot_questions, appsec_questions
+from QUIZ100 import reverse_engineering_questions, cryptography_questions
 
 # Combine all question sets
 all_questions = (
